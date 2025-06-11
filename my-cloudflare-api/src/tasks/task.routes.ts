@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { TaskService } from '../services/task.service';
+import { TaskService } from './task.service';
 import { AuthService } from '../auth/auth.service';
 import { validateCreateTaskDto } from './dto/create-task.dto';
 import { validateUpdateTaskDto } from './dto/update-task.dto';
