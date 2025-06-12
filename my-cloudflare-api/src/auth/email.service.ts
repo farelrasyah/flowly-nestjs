@@ -6,9 +6,8 @@ export class EmailService {
     this.resendApiKey = resendApiKey;
     this.fromEmail = fromEmail;
   }
-
   async sendVerificationEmail(to: string, username: string, verificationToken: string): Promise<boolean> {
-    const verificationUrl = `https://my-cloudflare-api.farelrasyah87.workers.dev/auth/verify-email?token=${verificationToken}`;
+    const verificationUrl = `https://my-cloudflare-api.farelrasyah87.workers.dev/auth/verify-email/${verificationToken}`;
     
     const subject = 'Verifikasi Email - Flowly App';
     const html = `
