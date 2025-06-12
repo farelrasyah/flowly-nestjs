@@ -4,6 +4,16 @@ import { cors } from "hono/cors";
 import { createAuthRoutes } from "./auth/auth.routes";
 import { createTaskRoutes } from "./tasks/task.routes";
 
+// Define Env interface
+export interface Env {
+  DB: D1Database;
+  RESEND_API_KEY: string;
+  SMTP_HOST: string;
+  SMTP_PORT: string;
+  SMTP_FROM_EMAIL: string;
+  APP_URL: string;
+}
+
 // Start a Hono app
 const app = new Hono<{ Bindings: Env }>();
 
@@ -18,7 +28,7 @@ app.use('*', cors({
 createAuthRoutes(app);
 
 // Register Task Management routes
-createTaskRoutes(app);
+// createTaskRoutes(app);
 
 // Setup OpenAPI registry
 const openapi = fromHono(app, {

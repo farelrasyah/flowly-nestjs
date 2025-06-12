@@ -34,7 +34,13 @@
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
-	// "vars": { "MY_VARIABLE": "production_value" },
+	"vars": { 
+		"RESEND_API_KEY": "re_CGJedtSq_5627ZLgX3WwruVifP2eNcJeJ",
+		"SMTP_HOST": "smtp.gmail.com",
+		"SMTP_PORT": "587",
+		"SMTP_FROM_EMAIL": "Flowly App <onboarding@resend.dev>",
+		"APP_URL": "https://my-cloudflare-api.farelrasyah87.workers.dev"
+	},
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/

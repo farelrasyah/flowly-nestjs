@@ -4,7 +4,13 @@
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
+  email_verified BOOLEAN DEFAULT FALSE,
+  verification_token TEXT,
+  verification_token_expires DATETIME,
+  reset_token TEXT,
+  reset_token_expires DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -24,6 +30,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 -- Index untuk performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token);
+CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_kategori ON tasks(kategori);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

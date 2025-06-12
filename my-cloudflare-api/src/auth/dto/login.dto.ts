@@ -1,13 +1,13 @@
 export interface LoginDto {
-  username: string;
+  usernameOrEmail: string;
   password: string;
 }
 
 export function validateLoginDto(data: any): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (!data.username || typeof data.username !== 'string') {
-    errors.push('Username is required');
+  if (!data.usernameOrEmail || typeof data.usernameOrEmail !== 'string') {
+    errors.push('Username atau email is required');
   }
 
   if (!data.password || typeof data.password !== 'string') {
