@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { AuthService } from './auth.service';
+import { GoogleAuthService } from './google-auth.service';
 import { validateRegisterDto } from './dto/register.dto';
 import { validateLoginDto } from './dto/login.dto';
 import { validateForgotPasswordDto } from './dto/forgot-password.dto';
@@ -257,12 +258,146 @@ app.post('/auth/reset-password', async (c) => {
     return c.json({
       success: true,
       ...result,
+    }, 200);  } catch (error) {
+    return c.json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error',
+    }, 400);
+  }
+});
+
+// Google OAuth endpoints
+app.get('/auth/google', async (c) => {
+  try {
+    const googleAuthService = new GoogleAuthService(
+      c.env.GOOGLE_CLIENT_ID,
+      c.env.GOOGLE_CLIENT_SECRET,
+      c.env.GOOGLE_REDIRECT_URI
+    );
+
+    const authUrl = googleAuthService.getAuthUrl();
+    
+    return c.json({
+      success: true,
+      auth_url: authUrl,
+      message: 'Redirect user to this URL for Google authentication'
     }, 200);
   } catch (error) {
     return c.json({
       success: false,
       message: error instanceof Error ? error.message : 'Internal server error',
-    }, 400);
+    }, 500);
+  }
+});
+
+app.get('/auth/google/callback', async (c) => {
+  try {
+    const code = c.req.query('code');
+    const error = c.req.query('error');
+
+    if (error) {
+      return c.json({
+        success: false,
+        message: 'Google authentication was cancelled or failed',
+        error: error
+      }, 400);
+    }
+
+    if (!code) {
+      return c.json({
+        success: false,
+        message: 'Authorization code is required'
+      }, 400);
+    }
+
+    const googleAuthService = new GoogleAuthService(
+      c.env.GOOGLE_CLIENT_ID,
+      c.env.GOOGLE_CLIENT_SECRET,
+      c.env.GOOGLE_REDIRECT_URI
+    );
+
+    const authService = new AuthService(
+      c.env.DB, 
+      c.env.RESEND_API_KEY, 
+      c.env.SMTP_FROM_EMAIL
+    );
+
+    // Exchange code for tokens
+    const tokens = await googleAuthService.getAccessToken(code);
+    
+    // Get user info from Google
+    const googleUser = await googleAuthService.getUserInfo(tokens.access_token);
+    
+    // Register or login user
+    const result = await authService.googleAuth(googleUser);
+    
+    return c.json({
+      success: true,
+      message: result.isNewUser ? 'Account created successfully' : 'Login successful',
+      access_token: result.access_token,
+      user: result.user,
+      is_new_user: result.isNewUser
+    }, 200);
+  } catch (error) {
+    return c.json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error',
+    }, 500);
+  }
+});
+
+app.post('/auth/google/mobile', async (c) => {
+  try {
+    let body;
+    
+    try {
+      body = await c.req.json();
+    } catch (jsonError) {
+      return c.json({
+        success: false,
+        message: 'Invalid JSON format. Please check your request body.',
+      }, 400);
+    }
+
+    const { access_token } = body;
+
+    if (!access_token) {
+      return c.json({
+        success: false,
+        message: 'Google access token is required'
+      }, 400);
+    }
+
+    const googleAuthService = new GoogleAuthService(
+      c.env.GOOGLE_CLIENT_ID,
+      c.env.GOOGLE_CLIENT_SECRET,
+      c.env.GOOGLE_REDIRECT_URI
+    );
+
+    const authService = new AuthService(
+      c.env.DB, 
+      c.env.RESEND_API_KEY, 
+      c.env.SMTP_FROM_EMAIL
+    );
+
+    // Get user info from Google using the access token
+    const googleUser = await googleAuthService.getUserInfo(access_token);
+    
+    // Register or login user
+    const result = await authService.googleAuth(googleUser);
+    
+    return c.json({
+      success: true,
+      message: result.isNewUser ? 'Account created successfully' : 'Login successful',
+      access_token: result.access_token,
+      user: result.user,
+      is_new_user: result.isNewUser
+    }, 200);
+  } catch (error) {
+    return c.json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error',
+    }, 500);
   }
 });
 }

@@ -33,13 +33,12 @@
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 */
-	"vars": { 
+	 */	"vars": { 
 		"RESEND_API_KEY": "re_CGJedtSq_5627ZLgX3WwruVifP2eNcJeJ",
 		"SMTP_HOST": "smtp.gmail.com",
 		"SMTP_PORT": "587",
-		"SMTP_FROM_EMAIL": "Flowly App <onboarding@resend.dev>",
-		"APP_URL": "https://my-cloudflare-api.farelrasyah87.workers.dev"
+		"SMTP_FROM_EMAIL": "Flowly App <onboarding@resend.dev>",		"APP_URL": "https://my-cloudflare-api.farelrasyah87.workers.dev",
+		"GOOGLE_REDIRECT_URI": "https://my-cloudflare-api.farelrasyah87.workers.dev/auth/google/callback"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.

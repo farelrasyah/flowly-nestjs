@@ -12,6 +12,9 @@ export interface Env {
   SMTP_PORT: string;
   SMTP_FROM_EMAIL: string;
   APP_URL: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_REDIRECT_URI: string;
 }
 
 // Start a Hono app

@@ -1,12 +1,21 @@
 # Logs
 
 logs
-_.log
-npm-debug.log_
+*.log
+npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Cloudflare
+.wrangler/
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 

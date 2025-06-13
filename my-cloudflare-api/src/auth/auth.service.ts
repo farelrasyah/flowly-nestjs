@@ -5,6 +5,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { EmailService } from './email.service';
+import { GoogleUserInfo } from './google-auth.service';
 
 export class AuthService {
   private emailService: EmailService;
@@ -43,13 +44,11 @@ export class AuthService {
 
     // Generate verification token
     const verificationToken = await this.generateToken();
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
-
-    // Buat user baru
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours    // Buat user baru
     const result = await this.db
       .prepare(`
-        INSERT INTO users (username, email, password, email_verified, verification_token, verification_token_expires, created_at, updated_at) 
-        VALUES (?, ?, ?, FALSE, ?, ?, datetime("now"), datetime("now"))
+        INSERT INTO users (username, email, password, email_verified, provider, verification_token, verification_token_expires, created_at, updated_at) 
+        VALUES (?, ?, ?, FALSE, 'local', ?, ?, datetime("now"), datetime("now"))
       `)
       .bind(username, email, hashedPassword, verificationToken, verificationExpires)
       .run();
@@ -63,7 +62,7 @@ export class AuthService {
 
     // Ambil user yang baru dibuat
     const newUser = await this.db
-      .prepare('SELECT id, username, email, email_verified, created_at, updated_at FROM users WHERE id = ?')
+      .prepare('SELECT id, username, email, email_verified, provider, avatar_url, created_at, updated_at FROM users WHERE id = ?')
       .bind(result.meta.last_row_id)
       .first() as UserResponse;
 
@@ -110,13 +109,15 @@ export class AuthService {
     // Cek apakah email sudah diverifikasi
     if (!user.email_verified) {
       throw new Error('Email belum diverifikasi. Silakan cek email Anda.');
-    }
-
-    // Verifikasi password
-    const isPasswordValid = await this.verifyPassword(password, user.password);
-    
-    if (!isPasswordValid) {
-      throw new Error('Username/email atau password salah');
+    }    // Verifikasi password (skip untuk Google users)
+    if (user.provider === 'local') {
+      const isPasswordValid = await this.verifyPassword(password, user.password);
+      
+      if (!isPasswordValid) {
+        throw new Error('Username/email atau password salah');
+      }
+    } else {
+      throw new Error('Akun ini terhubung dengan Google. Silakan gunakan login Google.');
     }
 
     // Buat JWT token
@@ -132,6 +133,8 @@ export class AuthService {
       username: user.username,
       email: user.email,
       email_verified: user.email_verified,
+      provider: user.provider,
+      avatar_url: user.avatar_url,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -337,9 +340,7 @@ export class AuthService {
       
       if (payload.exp < now) {
         return null; // Token expired
-      }
-
-      return {
+      }      return {
         userId: payload.userId,
         username: payload.username,
         email: payload.email,
@@ -347,5 +348,104 @@ export class AuthService {
     } catch (error) {
       return null;
     }
+  }
+
+  async googleAuth(googleUser: GoogleUserInfo): Promise<{ 
+    access_token: string; 
+    user: UserResponse; 
+    isNewUser: boolean 
+  }> {
+    // Cek apakah user sudah ada berdasarkan Google ID atau email
+    let user = await this.db
+      .prepare('SELECT * FROM users WHERE google_id = ? OR email = ?')
+      .bind(googleUser.id, googleUser.email)
+      .first() as User;
+
+    let isNewUser = false;
+
+    if (!user) {
+      // User baru, buat akun
+      isNewUser = true;
+      
+      // Generate username unik jika belum ada
+      let username = googleUser.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const existingUsername = await this.db
+        .prepare('SELECT id FROM users WHERE username = ?')
+        .bind(username)
+        .first();
+      
+      if (existingUsername) {
+        username = `${username}${Date.now()}`;
+      }
+
+      const result = await this.db
+        .prepare(`
+          INSERT INTO users (
+            username, email, email_verified, google_id, provider, avatar_url,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))
+        `)
+        .bind(
+          username,
+          googleUser.email,
+          googleUser.verified_email,
+          googleUser.id,
+          'google',
+          googleUser.picture
+        )
+        .run();
+
+      if (!result.success) {
+        throw new Error('Gagal membuat user dengan Google');
+      }
+
+      // Ambil user yang baru dibuat
+      user = await this.db
+        .prepare('SELECT * FROM users WHERE id = ?')
+        .bind(result.meta.last_row_id)
+        .first() as User;
+    } else {
+      // User sudah ada, update informasi Google jika belum ada
+      if (!user.google_id) {
+        await this.db
+          .prepare(`
+            UPDATE users 
+            SET google_id = ?, provider = ?, avatar_url = ?, email_verified = ?, updated_at = datetime("now")
+            WHERE id = ?
+          `)
+          .bind(googleUser.id, 'google', googleUser.picture, true, user.id)
+          .run();
+
+        // Refresh user data
+        user = await this.db
+          .prepare('SELECT * FROM users WHERE id = ?')
+          .bind(user.id)
+          .first() as User;
+      }
+    }    // Generate JWT token
+    const payload = {
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+    };
+
+    const token = await this.generateJWTToken(payload);
+
+    const userResponse: UserResponse = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      email_verified: user.email_verified,
+      provider: user.provider,
+      avatar_url: user.avatar_url,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    return {
+      access_token: token,
+      user: userResponse,
+      isNewUser,
+    };
   }
 }
